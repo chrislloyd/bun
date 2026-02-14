@@ -126,6 +126,7 @@ pub fn enqueueTarballForDownload(
 pub fn enqueueTarballForReading(
     this: *PackageManager,
     dependency_id: DependencyID,
+    package_id: PackageID,
     alias: string,
     resolution: *const Resolution,
     task_context: TaskCallbackContext,
@@ -144,6 +145,8 @@ pub fn enqueueTarballForReading(
 
     if (task_queue.found_existing) return;
 
+    const integrity = this.lockfile.packages.items(.meta)[package_id].integrity;
+
     this.task_batch.push(ThreadPool.Batch.from(enqueueLocalTarball(
         this,
         task_id,
@@ -151,6 +154,7 @@ pub fn enqueueTarballForReading(
         alias,
         path,
         resolution.*,
+        integrity,
     )));
 }
 
@@ -1133,6 +1137,7 @@ pub fn enqueueDependencyWithMainAndSuccessFn(
                         this.lockfile.str(&dependency.name),
                         url,
                         res,
+                        .{},
                     )));
                 },
                 .remote => {
@@ -1294,6 +1299,7 @@ fn enqueueLocalTarball(
     name: string,
     path: string,
     resolution: Resolution,
+    integrity: Integrity,
 ) *ThreadPool.Task {
     var task = this.preallocated_resolve_tasks.get();
     task.* = Task{
@@ -1313,6 +1319,7 @@ fn enqueueLocalTarball(
                     .cache_dir = this.getCacheDirectory(),
                     .temp_dir = this.getTemporaryDirectory().handle,
                     .dependency_id = dependency_id,
+                    .integrity = integrity,
                     .url = strings.StringOrTinyString.initAppendIfNeeded(
                         path,
                         *FileSystem.FilenameStore,
@@ -1884,6 +1891,7 @@ const Behavior = bun.install.Behavior;
 const Dependency = bun.install.Dependency;
 const DependencyID = bun.install.DependencyID;
 const ExtractTarball = bun.install.ExtractTarball;
+const Integrity = bun.install.Integrity;
 const Features = bun.install.Features;
 const FolderResolution = bun.install.FolderResolution;
 const Npm = bun.install.Npm;
